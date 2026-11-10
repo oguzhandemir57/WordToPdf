@@ -105,6 +105,13 @@ public class WordToPdfConverterService
         {
             wordApp.Visible = false;
             wordApp.DisplayAlerts = 0; // wdAlertsNone
+            
+            // Bilgi Güvenliği: Belge içerisindeki zararlı VBA makrolarının çalışmasını engelle (msoAutomationSecurityForceDisable = 3)
+            try
+            {
+                wordApp.AutomationSecurity = 3;
+            }
+            catch { }
 
             for (int i = 0; i < files.Count; i++)
             {
@@ -214,12 +221,19 @@ public class WordToPdfConverterService
                 var psi = new ProcessStartInfo
                 {
                     FileName = libreOfficePath,
-                    Arguments = $"--headless --convert-to pdf \"{file.FullName}\" --outdir \"{targetFolder}\"",
                     CreateNoWindow = true,
                     UseShellExecute = false,
                     RedirectStandardError = true,
                     RedirectStandardOutput = true
                 };
+
+                // Bilgi Güvenliği: Komut/Argüman enjeksiyonunu (Argument Injection) engellemek için ArgumentList kullanımı
+                psi.ArgumentList.Add("--headless");
+                psi.ArgumentList.Add("--convert-to");
+                psi.ArgumentList.Add("pdf");
+                psi.ArgumentList.Add(file.FullName);
+                psi.ArgumentList.Add("--outdir");
+                psi.ArgumentList.Add(targetFolder);
 
                 using var process = Process.Start(psi);
                 if (process != null)
