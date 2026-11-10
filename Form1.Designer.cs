@@ -11,9 +11,11 @@ partial class Form1
 
     private Panel panelFolderSelection;
     private Label lblFolderPrompt;
-    private TextBox txtFolderPath;
-    private Button btnBrowse;
+    private Button btnSelectFolder;
+    private Button btnSelectFiles;
     private CheckBox chkIncludeSubfolders;
+    private TextBox txtFolderPath;
+    private Button btnRefreshList;
 
     private Panel panelTargetInfo;
     private Label lblTargetInfo;
@@ -36,8 +38,6 @@ partial class Form1
     private Button btnCancel;
     private Button btnOpenFolder;
 
-    private FolderBrowserDialog folderBrowserDialog;
-
     protected override void Dispose(bool disposing)
     {
         if (disposing && (components != null))
@@ -56,9 +56,11 @@ partial class Form1
 
         panelFolderSelection = new Panel();
         lblFolderPrompt = new Label();
-        txtFolderPath = new TextBox();
-        btnBrowse = new Button();
+        btnSelectFolder = new Button();
+        btnSelectFiles = new Button();
         chkIncludeSubfolders = new CheckBox();
+        txtFolderPath = new TextBox();
+        btnRefreshList = new Button();
 
         panelTargetInfo = new Panel();
         lblTargetInfo = new Label();
@@ -81,14 +83,12 @@ partial class Form1
         btnCancel = new Button();
         btnOpenFolder = new Button();
 
-        folderBrowserDialog = new FolderBrowserDialog();
-
         // 
         // Form1
         // 
-        AutoScaleMode = AutoScaleMode.Dpi;
-        ClientSize = new Size(860, 640);
-        MinimumSize = new Size(720, 500);
+        AutoScaleMode = AutoScaleMode.None;
+        ClientSize = new Size(880, 680);
+        MinimumSize = new Size(760, 560);
         Text = "Word to PDF Dönüştürücü - Masaüstü PdfDosyaları";
         StartPosition = FormStartPosition.CenterScreen;
         Font = new Font("Segoe UI", 9.5F, FontStyle.Regular, GraphicsUnit.Point);
@@ -104,12 +104,12 @@ partial class Form1
         panelHeader.Padding = new Padding(20, 15, 20, 15);
 
         lblTitle.Text = "Word to PDF Dönüştürücü";
-        lblTitle.Font = new Font("Segoe UI Semibold", 15F, FontStyle.Bold, GraphicsUnit.Point);
+        lblTitle.Font = new Font("Segoe UI", 15F, FontStyle.Bold, GraphicsUnit.Point);
         lblTitle.ForeColor = Color.White;
         lblTitle.AutoSize = true;
         lblTitle.Location = new Point(20, 14);
 
-        lblSubtitle.Text = "Seçilen klasördeki Word (.docx, .doc) belgelerini Masaüstünde 'PdfDosyaları' klasörüne dönüştürür.";
+        lblSubtitle.Text = "Word (.docx, .doc) belgelerini Masaüstünde 'PdfDosyaları' klasörüne PDF olarak aktarır.";
         lblSubtitle.Font = new Font("Segoe UI", 9F, FontStyle.Regular, GraphicsUnit.Point);
         lblSubtitle.ForeColor = Color.FromArgb(203, 213, 225);
         lblSubtitle.AutoSize = true;
@@ -118,10 +118,10 @@ partial class Form1
         lblEngineBadge.Anchor = AnchorStyles.Top | AnchorStyles.Right;
         lblEngineBadge.AutoSize = true;
         lblEngineBadge.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold, GraphicsUnit.Point);
-        lblEngineBadge.ForeColor = Color.FromArgb(226, 232, 240);
+        lblEngineBadge.ForeColor = Color.White;
         lblEngineBadge.BackColor = Color.FromArgb(51, 65, 85);
-        lblEngineBadge.Padding = new Padding(8, 4, 8, 4);
-        lblEngineBadge.Location = new Point(600, 28);
+        lblEngineBadge.Padding = new Padding(8, 5, 8, 5);
+        lblEngineBadge.Location = new Point(620, 26);
         lblEngineBadge.Text = "Motor Denetleniyor...";
 
         panelHeader.Controls.Add(lblTitle);
@@ -132,40 +132,68 @@ partial class Form1
         // panelFolderSelection
         // 
         panelFolderSelection.Dock = DockStyle.Top;
-        panelFolderSelection.Height = 78;
+        panelFolderSelection.Height = 115;
         panelFolderSelection.BackColor = Color.White;
         panelFolderSelection.Padding = new Padding(20, 10, 20, 10);
 
-        lblFolderPrompt.Text = "Word Belgelerinin Bulunduğu Kaynak Klasör:";
-        lblFolderPrompt.Font = new Font("Segoe UI Semibold", 9.5F, FontStyle.Bold, GraphicsUnit.Point);
+        lblFolderPrompt.Text = "1. Adım: Dönüştürülecek Word Dosyalarını veya Klasörü Seçin:";
+        lblFolderPrompt.Font = new Font("Segoe UI", 10F, FontStyle.Bold, GraphicsUnit.Point);
         lblFolderPrompt.ForeColor = Color.FromArgb(15, 23, 42);
         lblFolderPrompt.AutoSize = true;
         lblFolderPrompt.Location = new Point(20, 10);
 
-        txtFolderPath.Location = new Point(20, 36);
-        txtFolderPath.Size = new Size(580, 29);
-        txtFolderPath.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-        txtFolderPath.PlaceholderText = "Bir klasör yolu yazın veya 'Klasör Seç' butonuna tıklayın (Sürükle-bırak desteklenir)...";
+        // Buton: Klasör Seç
+        btnSelectFolder.Text = "📁 Klasör Seç...";
+        btnSelectFolder.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold, GraphicsUnit.Point);
+        btnSelectFolder.Size = new Size(140, 36);
+        btnSelectFolder.Location = new Point(20, 36);
+        btnSelectFolder.BackColor = Color.FromArgb(37, 99, 235);
+        btnSelectFolder.ForeColor = Color.White;
+        btnSelectFolder.FlatStyle = FlatStyle.Flat;
+        btnSelectFolder.FlatAppearance.BorderSize = 0;
+        btnSelectFolder.Cursor = Cursors.Hand;
+        btnSelectFolder.Click += BtnBrowseFolder_Click;
 
-        btnBrowse.Text = "📁 Klasör Seç...";
-        btnBrowse.Font = new Font("Segoe UI Semibold", 9F, FontStyle.Bold, GraphicsUnit.Point);
-        btnBrowse.Location = new Point(610, 34);
-        btnBrowse.Size = new Size(115, 32);
-        btnBrowse.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-        btnBrowse.BackColor = Color.FromArgb(241, 245, 249);
-        btnBrowse.FlatStyle = FlatStyle.System;
-        btnBrowse.Click += BtnBrowse_Click;
+        // Buton: Dosya(lar) Seç
+        btnSelectFiles.Text = "📄 Word Dosyası Seç...";
+        btnSelectFiles.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold, GraphicsUnit.Point);
+        btnSelectFiles.Size = new Size(175, 36);
+        btnSelectFiles.Location = new Point(170, 36);
+        btnSelectFiles.BackColor = Color.FromArgb(79, 70, 229);
+        btnSelectFiles.ForeColor = Color.White;
+        btnSelectFiles.FlatStyle = FlatStyle.Flat;
+        btnSelectFiles.FlatAppearance.BorderSize = 0;
+        btnSelectFiles.Cursor = Cursors.Hand;
+        btnSelectFiles.Click += BtnBrowseFiles_Click;
 
-        chkIncludeSubfolders.Text = "Alt klasörleri de tara";
+        chkIncludeSubfolders.Text = "Alt klasörlerdeki Word dosyalarını da dahil et";
         chkIncludeSubfolders.AutoSize = true;
-        chkIncludeSubfolders.Location = new Point(735, 39);
-        chkIncludeSubfolders.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+        chkIncludeSubfolders.Location = new Point(360, 44);
         chkIncludeSubfolders.CheckedChanged += ChkIncludeSubfolders_CheckedChanged;
 
+        // Metin kutusu ve Listele butonu
+        txtFolderPath.Location = new Point(20, 78);
+        txtFolderPath.Size = new Size(710, 29);
+        txtFolderPath.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+        txtFolderPath.PlaceholderText = "Bir klasör yolu yazın veya yapıştırıp 'Listele' butonuna tıklayın / Enter'a basın...";
+        txtFolderPath.KeyDown += TxtFolderPath_KeyDown;
+
+        btnRefreshList.Text = "🔍 Listele";
+        btnRefreshList.Font = new Font("Segoe UI", 9F, FontStyle.Bold, GraphicsUnit.Point);
+        btnRefreshList.Location = new Point(740, 76);
+        btnRefreshList.Size = new Size(115, 32);
+        btnRefreshList.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+        btnRefreshList.BackColor = Color.FromArgb(241, 245, 249);
+        btnRefreshList.FlatStyle = FlatStyle.System;
+        btnRefreshList.Cursor = Cursors.Hand;
+        btnRefreshList.Click += BtnRefreshList_Click;
+
         panelFolderSelection.Controls.Add(lblFolderPrompt);
-        panelFolderSelection.Controls.Add(txtFolderPath);
-        panelFolderSelection.Controls.Add(btnBrowse);
+        panelFolderSelection.Controls.Add(btnSelectFolder);
+        panelFolderSelection.Controls.Add(btnSelectFiles);
         panelFolderSelection.Controls.Add(chkIncludeSubfolders);
+        panelFolderSelection.Controls.Add(txtFolderPath);
+        panelFolderSelection.Controls.Add(btnRefreshList);
 
         // 
         // panelTargetInfo
@@ -175,16 +203,16 @@ partial class Form1
         panelTargetInfo.BackColor = Color.FromArgb(238, 242, 255);
         panelTargetInfo.Padding = new Padding(20, 8, 20, 8);
 
-        lblTargetInfo.Text = "📂 Hedef Konum: Masaüstü\\PdfDosyaları (Dosya isimleri aynı korunacaktır)";
+        lblTargetInfo.Text = "📂 Hedef Konum: Masaüstü\\PdfDosyaları (Dosya adları aynı kalacaktır)";
         lblTargetInfo.ForeColor = Color.FromArgb(67, 56, 202);
-        lblTargetInfo.Font = new Font("Segoe UI Semibold", 9F, FontStyle.Bold, GraphicsUnit.Point);
+        lblTargetInfo.Font = new Font("Segoe UI", 9F, FontStyle.Bold, GraphicsUnit.Point);
         lblTargetInfo.AutoSize = true;
         lblTargetInfo.Location = new Point(20, 12);
 
         btnOpenTargetFolderTop.Text = "Masaüstü Klasörünü Aç";
         btnOpenTargetFolderTop.Font = new Font("Segoe UI", 8.5F, FontStyle.Regular, GraphicsUnit.Point);
         btnOpenTargetFolderTop.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-        btnOpenTargetFolderTop.Location = new Point(680, 8);
+        btnOpenTargetFolderTop.Location = new Point(695, 8);
         btnOpenTargetFolderTop.Size = new Size(160, 28);
         btnOpenTargetFolderTop.BackColor = Color.White;
         btnOpenTargetFolderTop.FlatStyle = FlatStyle.System;
@@ -194,74 +222,34 @@ partial class Form1
         panelTargetInfo.Controls.Add(btnOpenTargetFolderTop);
 
         // 
-        // panelListContainer
-        // 
-        panelListContainer.Dock = DockStyle.Fill;
-        panelListContainer.Padding = new Padding(20, 10, 20, 10);
-        panelListContainer.BackColor = Color.FromArgb(248, 250, 252);
-
-        lblListTitle.Text = "Bulunan Word Belgeleri (0 dosya)";
-        lblListTitle.Font = new Font("Segoe UI Semibold", 9.5F, FontStyle.Bold, GraphicsUnit.Point);
-        lblListTitle.ForeColor = Color.FromArgb(51, 65, 85);
-        lblListTitle.Dock = DockStyle.Top;
-        lblListTitle.Height = 26;
-
-        lvFiles.Dock = DockStyle.Fill;
-        lvFiles.View = View.Details;
-        lvFiles.FullRowSelect = true;
-        lvFiles.GridLines = true;
-        lvFiles.BorderStyle = BorderStyle.FixedSingle;
-        lvFiles.Font = new Font("Segoe UI", 9F, FontStyle.Regular, GraphicsUnit.Point);
-
-        colIndex.Text = "#";
-        colIndex.Width = 45;
-
-        colName.Text = "Dosya Adı";
-        colName.Width = 320;
-
-        colSize.Text = "Boyut";
-        colSize.Width = 95;
-
-        colStatus.Text = "Durum";
-        colStatus.Width = 130;
-
-        colMessage.Text = "Bilgi / Hata Detayı";
-        colMessage.Width = 240;
-
-        lvFiles.Columns.AddRange(new ColumnHeader[] { colIndex, colName, colSize, colStatus, colMessage });
-
-        panelListContainer.Controls.Add(lvFiles);
-        panelListContainer.Controls.Add(lblListTitle);
-
-        // 
         // panelBottom
         // 
         panelBottom.Dock = DockStyle.Bottom;
-        panelBottom.Height = 115;
+        panelBottom.Height = 120;
         panelBottom.BackColor = Color.White;
         panelBottom.Padding = new Padding(20, 12, 20, 12);
 
         progressBar.Location = new Point(20, 14);
-        progressBar.Size = new Size(820, 22);
+        progressBar.Size = new Size(835, 22);
         progressBar.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
 
-        lblProgressStatus.Text = "Hazır - Klasör seçtikten sonra 'Dönüştürmeyi Başlat' butonuna tıklayın.";
+        lblProgressStatus.Text = "Hazır - Klasör veya dosya seçtikten sonra 'Dönüştürmeyi Başlat' butonuna tıklayın.";
         lblProgressStatus.Font = new Font("Segoe UI", 9F, FontStyle.Regular, GraphicsUnit.Point);
         lblProgressStatus.ForeColor = Color.FromArgb(71, 85, 105);
         lblProgressStatus.Location = new Point(20, 42);
         lblProgressStatus.AutoSize = true;
 
         lblProgressCount.Text = "0 / 0 (%0)";
-        lblProgressCount.Font = new Font("Segoe UI Semibold", 9F, FontStyle.Bold, GraphicsUnit.Point);
+        lblProgressCount.Font = new Font("Segoe UI", 9F, FontStyle.Bold, GraphicsUnit.Point);
         lblProgressCount.ForeColor = Color.FromArgb(71, 85, 105);
         lblProgressCount.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-        lblProgressCount.Location = new Point(730, 42);
+        lblProgressCount.Location = new Point(745, 42);
         lblProgressCount.TextAlign = ContentAlignment.TopRight;
         lblProgressCount.AutoSize = true;
 
         btnStart.Text = "▶ Dönüştürmeyi Başlat";
-        btnStart.Font = new Font("Segoe UI Semibold", 10F, FontStyle.Bold, GraphicsUnit.Point);
-        btnStart.Size = new Size(200, 38);
+        btnStart.Font = new Font("Segoe UI", 10.5F, FontStyle.Bold, GraphicsUnit.Point);
+        btnStart.Size = new Size(210, 42);
         btnStart.Location = new Point(20, 68);
         btnStart.BackColor = Color.FromArgb(16, 185, 129);
         btnStart.ForeColor = Color.White;
@@ -271,9 +259,9 @@ partial class Form1
         btnStart.Click += BtnStart_Click;
 
         btnCancel.Text = "⏹ İptal Et";
-        btnCancel.Font = new Font("Segoe UI Semibold", 9.5F, FontStyle.Bold, GraphicsUnit.Point);
-        btnCancel.Size = new Size(110, 38);
-        btnCancel.Location = new Point(230, 68);
+        btnCancel.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold, GraphicsUnit.Point);
+        btnCancel.Size = new Size(110, 42);
+        btnCancel.Location = new Point(240, 68);
         btnCancel.BackColor = Color.FromArgb(239, 68, 68);
         btnCancel.ForeColor = Color.White;
         btnCancel.FlatStyle = FlatStyle.Flat;
@@ -283,9 +271,9 @@ partial class Form1
         btnCancel.Click += BtnCancel_Click;
 
         btnOpenFolder.Text = "📂 PdfDosyaları Klasörünü Aç";
-        btnOpenFolder.Font = new Font("Segoe UI Semibold", 9.5F, FontStyle.Regular, GraphicsUnit.Point);
-        btnOpenFolder.Size = new Size(220, 38);
-        btnOpenFolder.Location = new Point(620, 68);
+        btnOpenFolder.Font = new Font("Segoe UI", 9.5F, FontStyle.Regular, GraphicsUnit.Point);
+        btnOpenFolder.Size = new Size(220, 42);
+        btnOpenFolder.Location = new Point(635, 68);
         btnOpenFolder.Anchor = AnchorStyles.Top | AnchorStyles.Right;
         btnOpenFolder.BackColor = Color.FromArgb(241, 245, 249);
         btnOpenFolder.ForeColor = Color.FromArgb(30, 41, 59);
@@ -302,7 +290,47 @@ partial class Form1
         panelBottom.Controls.Add(btnOpenFolder);
 
         // 
-        // Add all panels to form
+        // panelListContainer
+        // 
+        panelListContainer.Dock = DockStyle.Fill;
+        panelListContainer.Padding = new Padding(20, 10, 20, 10);
+        panelListContainer.BackColor = Color.FromArgb(248, 250, 252);
+
+        lblListTitle.Text = "Bulunan Word Belgeleri (0 dosya)";
+        lblListTitle.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold, GraphicsUnit.Point);
+        lblListTitle.ForeColor = Color.FromArgb(51, 65, 85);
+        lblListTitle.Dock = DockStyle.Top;
+        lblListTitle.Height = 28;
+
+        lvFiles.Dock = DockStyle.Fill;
+        lvFiles.View = View.Details;
+        lvFiles.FullRowSelect = true;
+        lvFiles.GridLines = true;
+        lvFiles.BorderStyle = BorderStyle.FixedSingle;
+        lvFiles.Font = new Font("Segoe UI", 9F, FontStyle.Regular, GraphicsUnit.Point);
+
+        colIndex.Text = "#";
+        colIndex.Width = 45;
+
+        colName.Text = "Dosya Adı";
+        colName.Width = 330;
+
+        colSize.Text = "Boyut";
+        colSize.Width = 95;
+
+        colStatus.Text = "Durum";
+        colStatus.Width = 130;
+
+        colMessage.Text = "Bilgi / Hata Detayı";
+        colMessage.Width = 240;
+
+        lvFiles.Columns.AddRange(new ColumnHeader[] { colIndex, colName, colSize, colStatus, colMessage });
+
+        panelListContainer.Controls.Add(lvFiles);
+        panelListContainer.Controls.Add(lblListTitle);
+
+        // 
+        // Dock sırası: Header -> FolderSelection -> TargetInfo -> Bottom -> Fill
         // 
         Controls.Add(panelListContainer);
         Controls.Add(panelBottom);

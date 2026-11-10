@@ -39,16 +39,17 @@ public partial class Form1 : Form
         }
     }
 
-    private void BtnBrowse_Click(object? sender, EventArgs e)
+    private void BtnBrowseFolder_Click(object? sender, EventArgs e)
     {
         using var dialog = new FolderBrowserDialog();
         dialog.Description = "Word dosyalarının bulunduğu klasörü seçin";
         dialog.UseDescriptionForTitle = true;
         dialog.ShowNewFolderButton = false;
 
-        if (!string.IsNullOrWhiteSpace(txtFolderPath.Text) && Directory.Exists(txtFolderPath.Text))
+        string current = CleanPath(txtFolderPath.Text);
+        if (!string.IsNullOrWhiteSpace(current) && Directory.Exists(current))
         {
-            dialog.SelectedPath = txtFolderPath.Text;
+            dialog.SelectedPath = current;
         }
 
         if (dialog.ShowDialog(this) == DialogResult.OK)
@@ -58,57 +59,77 @@ public partial class Form1 : Form
         }
     }
 
+    private void BtnBrowseFiles_Click(object? sender, EventArgs e)
+    {
+        using var dialog = new OpenFileDialog();
+        dialog.Title = "Dönüştürmek İstediğiniz Word Dosyalarını Seçin";
+        dialog.Filter = "Word Belgeleri (*.docx;*.doc;*.docm)|*.docx;*.doc;*.docm|Tüm Dosyalar (*.*)|*.*";
+        dialog.Multiselect = true;
+
+        if (dialog.ShowDialog(this) == DialogResult.OK && dialog.FileNames.Length > 0)
+        {
+            txtFolderPath.Text = Path.GetDirectoryName(dialog.FileNames[0]) ?? string.Empty;
+            LoadSpecificFiles(dialog.FileNames);
+        }
+    }
+
+    private void TxtFolderPath_KeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.KeyCode == Keys.Enter)
+        {
+            e.SuppressKeyPress = true;
+            BtnRefreshList_Click(sender, EventArgs.Empty);
+        }
+    }
+
+    private void BtnRefreshList_Click(object? sender, EventArgs e)
+    {
+        string rawPath = CleanPath(txtFolderPath.Text);
+        if (string.IsNullOrWhiteSpace(rawPath))
+        {
+            MessageBox.Show(
+                "Lütfen bir klasör yolu girin veya '📁 Klasör Seç' / '📄 Word Dosyası Seç' butonlarına tıklayın.",
+                "Bilgi",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information);
+            return;
+        }
+
+        if (Directory.Exists(rawPath))
+        {
+            LoadFilesFromFolder(rawPath);
+        }
+        else if (File.Exists(rawPath))
+        {
+            LoadSpecificFiles(new[] { rawPath });
+        }
+        else
+        {
+            MessageBox.Show(
+                $"Belirtilen yol bulunamadı:\n{rawPath}\n\nLütfen klasör yolunun doğruluğundan emin olun.",
+                "Yol Bulunamadı",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning);
+        }
+    }
+
     private void ChkIncludeSubfolders_CheckedChanged(object? sender, EventArgs e)
     {
-        if (!string.IsNullOrWhiteSpace(txtFolderPath.Text) && Directory.Exists(txtFolderPath.Text))
+        string path = CleanPath(txtFolderPath.Text);
+        if (!string.IsNullOrWhiteSpace(path) && Directory.Exists(path))
         {
-            LoadFilesFromFolder(txtFolderPath.Text);
+            LoadFilesFromFolder(path);
         }
     }
 
     private void LoadFilesFromFolder(string folderPath)
     {
-        if (!Directory.Exists(folderPath))
-        {
-            MessageBox.Show(
-                "Seçilen klasör yolu bulunamadı.",
-                "Uyarı",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Warning);
-            return;
-        }
-
         try
         {
             Cursor = Cursors.WaitCursor;
             bool includeSub = chkIncludeSubfolders.Checked;
             _currentWordFiles = WordToPdfConverterService.ScanWordFiles(folderPath, includeSub);
-
-            lvFiles.BeginUpdate();
-            lvFiles.Items.Clear();
-
-            int index = 1;
-            foreach (var file in _currentWordFiles)
-            {
-                var lvi = new ListViewItem(index.ToString());
-                lvi.SubItems.Add(file.Name);
-                lvi.SubItems.Add(FormatFileSize(file.Length));
-                lvi.SubItems.Add("Bekliyor");
-                lvi.SubItems.Add(file.DirectoryName ?? string.Empty);
-                lvi.Tag = file.FullName;
-                lvFiles.Items.Add(lvi);
-                index++;
-            }
-            lvFiles.EndUpdate();
-
-            lblListTitle.Text = $"Bulunan Word Belgeleri ({_currentWordFiles.Count} dosya)";
-            lblProgressStatus.Text = _currentWordFiles.Count > 0
-                ? $"{_currentWordFiles.Count} adet Word belgesi bulundu. 'Dönüştürmeyi Başlat' butonuna tıklayabilirsiniz."
-                : "Seçilen klasörde Word belgesi (.docx, .doc) bulunamadı.";
-
-            progressBar.Value = 0;
-            lblProgressCount.Text = $"0 / {_currentWordFiles.Count} (%0)";
-            btnStart.Enabled = _currentWordFiles.Count > 0;
+            PopulateListView(_currentWordFiles);
         }
         catch (Exception ex)
         {
@@ -124,6 +145,58 @@ public partial class Form1 : Form
         }
     }
 
+    private void LoadSpecificFiles(string[] filePaths)
+    {
+        try
+        {
+            Cursor = Cursors.WaitCursor;
+            _currentWordFiles = filePaths
+                .Where(f => File.Exists(f))
+                .Select(f => new FileInfo(f))
+                .Where(f => !f.Name.StartsWith("~$", StringComparison.OrdinalIgnoreCase) &&
+                           (f.Extension.Equals(".docx", StringComparison.OrdinalIgnoreCase) ||
+                            f.Extension.Equals(".doc", StringComparison.OrdinalIgnoreCase) ||
+                            f.Extension.Equals(".docm", StringComparison.OrdinalIgnoreCase)))
+                .OrderBy(f => f.Name)
+                .ToList();
+
+            PopulateListView(_currentWordFiles);
+        }
+        finally
+        {
+            Cursor = Cursors.Default;
+        }
+    }
+
+    private void PopulateListView(List<FileInfo> files)
+    {
+        lvFiles.BeginUpdate();
+        lvFiles.Items.Clear();
+
+        int index = 1;
+        foreach (var file in files)
+        {
+            var lvi = new ListViewItem(index.ToString());
+            lvi.SubItems.Add(file.Name);
+            lvi.SubItems.Add(FormatFileSize(file.Length));
+            lvi.SubItems.Add("Bekliyor");
+            lvi.SubItems.Add(file.DirectoryName ?? string.Empty);
+            lvi.Tag = file.FullName;
+            lvFiles.Items.Add(lvi);
+            index++;
+        }
+        lvFiles.EndUpdate();
+
+        lblListTitle.Text = $"Bulunan Word Belgeleri ({files.Count} dosya)";
+        lblProgressStatus.Text = files.Count > 0
+            ? $"{files.Count} adet Word belgesi seçildi. 'Dönüştürmeyi Başlat' butonuna tıklayabilirsiniz."
+            : "Seçilen konumda Word belgesi (.docx, .doc) bulunamadı.";
+
+        progressBar.Value = 0;
+        lblProgressCount.Text = $"0 / {files.Count} (%0)";
+        btnStart.Enabled = files.Count > 0;
+    }
+
     private async void BtnStart_Click(object? sender, EventArgs e)
     {
         if (_isConverting) return;
@@ -131,7 +204,7 @@ public partial class Form1 : Form
         if (_currentWordFiles.Count == 0)
         {
             MessageBox.Show(
-                "Lütfen önce Word dosyalarının bulunduğu bir klasör seçin.",
+                "Lütfen önce '📁 Klasör Seç' veya '📄 Word Dosyası Seç' butonları ile dönüştürülecek dosyaları belirleyin.",
                 "Uyarı",
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Warning);
@@ -142,9 +215,9 @@ public partial class Form1 : Form
         if (engine == ConversionEngine.None)
         {
             var result = MessageBox.Show(
-                "Word dosyalarını PDF formatına dönüştürebilmek için sisteminizde Microsoft Word veya LibreOffice kurulu olmalıdır.\n\n" +
-                "Herhangi bir dönüştürücü motor algılanamadı. Yine de devam etmek istiyor musunuz?",
-                "Dönüştürücü Motor Bulunamadı",
+                "Word belgelerini PDF'e dönüştürebilmek için bilgisayarınızda Microsoft Word veya LibreOffice kurulu olmalıdır.\n\n" +
+                "Otomatik motor algılanamadı. Yine de dönüştürmeyi denemek istiyor musunuz?",
+                "Dönüştürücü Motor Uyarısı",
                 MessageBoxButtons.YesNo,
                 MessageBoxIcon.Warning);
 
@@ -156,7 +229,6 @@ public partial class Form1 : Form
 
         string targetFolder = WordToPdfConverterService.GetDesktopPdfFolderPath();
 
-        // UI state: converting
         SetConversionState(true);
         _cancellationTokenSource = new CancellationTokenSource();
 
@@ -230,9 +302,9 @@ public partial class Form1 : Form
         }
         catch (OperationCanceledException)
         {
-            lblProgressStatus.Text = "Dönüştürme işlemi kullanıcı tarafından iptal edildi.";
+            lblProgressStatus.Text = "Dönüştürme işlemi iptal edildi.";
             MessageBox.Show(
-                "İşlem iptal edildi.",
+                "İşlem kullanıcı tarafından iptal edildi.",
                 "Bilgi",
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Information);
@@ -299,7 +371,9 @@ public partial class Form1 : Form
     {
         _isConverting = converting;
         btnStart.Enabled = !converting;
-        btnBrowse.Enabled = !converting;
+        btnSelectFolder.Enabled = !converting;
+        btnSelectFiles.Enabled = !converting;
+        btnRefreshList.Enabled = !converting;
         chkIncludeSubfolders.Enabled = !converting;
         btnCancel.Enabled = converting;
         btnCancel.Text = "⏹ İptal Et";
@@ -310,27 +384,39 @@ public partial class Form1 : Form
     {
         if (e.Data != null && e.Data.GetDataPresent(DataFormats.FileDrop))
         {
-            string[]? files = (string[]?)e.Data.GetData(DataFormats.FileDrop);
-            if (files != null && files.Length > 0 && Directory.Exists(files[0]))
-            {
-                e.Effect = DragDropEffects.Copy;
-                return;
-            }
+            e.Effect = DragDropEffects.Copy;
         }
-        e.Effect = DragDropEffects.None;
+        else
+        {
+            e.Effect = DragDropEffects.None;
+        }
     }
 
     private void Form1_DragDrop(object? sender, DragEventArgs e)
     {
         if (e.Data != null && e.Data.GetDataPresent(DataFormats.FileDrop))
         {
-            string[]? files = (string[]?)e.Data.GetData(DataFormats.FileDrop);
-            if (files != null && files.Length > 0 && Directory.Exists(files[0]))
+            string[]? items = (string[]?)e.Data.GetData(DataFormats.FileDrop);
+            if (items != null && items.Length > 0)
             {
-                txtFolderPath.Text = files[0];
-                LoadFilesFromFolder(files[0]);
+                if (Directory.Exists(items[0]))
+                {
+                    txtFolderPath.Text = items[0];
+                    LoadFilesFromFolder(items[0]);
+                }
+                else
+                {
+                    txtFolderPath.Text = Path.GetDirectoryName(items[0]) ?? string.Empty;
+                    LoadSpecificFiles(items);
+                }
             }
         }
+    }
+
+    private static string CleanPath(string input)
+    {
+        if (string.IsNullOrWhiteSpace(input)) return string.Empty;
+        return input.Trim().Trim('\"', '\'');
     }
 
     private static string FormatFileSize(long bytes)

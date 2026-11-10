@@ -1,3 +1,3 @@
 @echo off
 cd /d "%~dp0"
-start "" "publish\WordToPdfApp.exe"
+start "" "dist\WordToPdfApp.exe"
